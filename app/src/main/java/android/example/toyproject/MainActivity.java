@@ -8,7 +8,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Debug;
 import android.os.Environment;
@@ -19,6 +21,7 @@ import android.view.View;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -26,7 +29,7 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity implements MyAdapter.ItemClickListener {
 
     private static final int MY_PERMISSIONS_REQUEST_READ_MEDIA = 0;
-    private MediaPlayer mediaPlayer;
+    private MediaPlayer audioPlayer;
     private RecyclerView recyclerView;
     private RecyclerView.Adapter mAdapter;
     private RecyclerView.LayoutManager layoutManager;
@@ -57,9 +60,9 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
                 file_names[i] = files[i].getName();
                 Log.d("Files", "FileName:" + files[i].getName());
             }
-            layoutManager = new LinearLayoutManager(this,LinearLayoutManager.HORIZONTAL, false);
+            //layoutManager = new LinearLayoutManager(this,LinearLayoutManager.HORIZONTAL, false);
             recyclerView = findViewById(R.id.my_recycler_view);
-            recyclerView.setLayoutManager(layoutManager);
+            recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
             // use this setting to improve performance if you know that changes
             // in content do not change the layout size of the RecyclerView
@@ -97,22 +100,26 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
     }*/
 
     @Override
-    public void onItemClick(View view, int position) {
+    public void onItemClick(View view, int position) throws IOException {
         Toast.makeText(this, "You clicked " + adapter.getItem(position) + " on row number " + position, Toast.LENGTH_SHORT).show();
-        
         recyclerView.setAdapter(adapter);
-        mediaPlayer = MediaPlayer.create(this,R.raw.sound);
+        audioPlayer = new MediaPlayer();
+        audioPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+        String path =  Environment.getExternalStorageDirectory().toString() + "/Music/" + adapter.getItem(position);
+        audioPlayer.setDataSource(getApplicationContext(), Uri.parse(path));
+        audioPlayer.prepare();
 
         Button playButton = (Button) findViewById(R.id.start);
 
         playButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mediaPlayer.start();
-                mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                audioPlayer.start();
+                audioPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
                     @Override
                     public void onCompletion(MediaPlayer mp) {
                         Toast.makeText(MainActivity.this, "The Song is Over", Toast.LENGTH_SHORT).show();
+                        audioPlayer.release();
                     }
                 });
             }
@@ -123,7 +130,7 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
         pauseButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mediaPlayer.pause();
+                audioPlayer.pause();
             }
         });
     }
