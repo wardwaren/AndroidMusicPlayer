@@ -7,17 +7,21 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Debug;
 import android.os.Environment;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.widget.Button;
 import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import java.io.File;
@@ -33,13 +37,18 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
     private RecyclerView recyclerView;
     private RecyclerView.Adapter mAdapter;
     private RecyclerView.LayoutManager layoutManager;
+    private ProgressBar progressBar;
     MyAdapter adapter;
+    int progressBarStatus = 0;
+    Handler progressBarHandler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
 
         if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_READ_MEDIA);
@@ -79,25 +88,6 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
 
 
     }
-    /*
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_READ_MEDIA:
-                if ((grantResults.length > 0) && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    readDataExternal();
-                }
-                break;
-
-            default:
-                break;
-        }
-    }
-    private void readDataExternal() {
-
-
-
-    }*/
 
     @Override
     public void onItemClick(View view, int position) throws IOException {
@@ -108,8 +98,41 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
         String path =  Environment.getExternalStorageDirectory().toString() + "/Music/" + adapter.getItem(position);
         audioPlayer.setDataSource(getApplicationContext(), Uri.parse(path));
         audioPlayer.prepare();
-
+        audioPlayer.start();
+        audioPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                Toast.makeText(MainActivity.this, "The Song is Over", Toast.LENGTH_SHORT).show();
+                audioPlayer.release();
+            }
+        });
+        //progressBar = findViewById(R.id.play_audio_progressbar);
+        Drawable draw= getResources().getDrawable(R.drawable.custom_progressbar);
+        progressBar = (ProgressBar) findViewById(R.id.play_audio_progressbar);
+        //progressBar = (ProgressBar) findViewById(R.id.play_audio_progressbar);
+        progressBar.setProgressDrawable(draw);
+        progressBar.setProgress(0);
+        progressBar.setMax(audioPlayer.getDuration() / 1000);
+        progressBarStatus = 0;
+        //progressBar.draw(view);
         Button playButton = (Button) findViewById(R.id.start);
+        new Thread(new Runnable() {
+            public void run() {
+                while(progressBarStatus < audioPlayer.getDuration()/1000){
+                    progressBarStatus = audioPlayer.getCurrentPosition()/1000;
+                    Log.d("positions","current: " + progressBarStatus);
+                    progressBarHandler.post(new Runnable() {
+                        public void run() {
+                            progressBar.setProgress(progressBarStatus);
+                        }
+                    });
+                    if (progressBarStatus >= audioPlayer.getDuration()/1000) {
+                        // close the progress bar dialo
+                    }
+                }
+
+            }
+        }).start();
 
         playButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -134,5 +157,6 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
             }
         });
     }
+
 
 }
