@@ -33,13 +33,16 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity implements MyAdapter.ItemClickListener {
 
     private static final int MY_PERMISSIONS_REQUEST_READ_MEDIA = 0;
-    private MediaPlayer audioPlayer;
+    private MediaPlayer audioPlayer = new MediaPlayer();;
     private RecyclerView recyclerView;
     private RecyclerView.Adapter mAdapter;
     private RecyclerView.LayoutManager layoutManager;
     private ProgressBar progressBar;
+    private int progressBarStatus = 0;
+    private int currentSong = -1;
+
     MyAdapter adapter;
-    int progressBarStatus = 0;
+
     Handler progressBarHandler = new Handler();
 
     @Override
@@ -47,8 +50,9 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
         int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-
+        Button playButton = (Button) findViewById(R.id.start);
+        Button pauseButton = (Button) findViewById(R.id.stop);
+        audioPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 
         if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_READ_MEDIA);
@@ -83,6 +87,32 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
             adapter = new MyAdapter(this, names);
             adapter.setClickListener(this);
             recyclerView.setAdapter(adapter);
+
+            playButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if(audioPlayer != null){
+                        audioPlayer.start();
+                        audioPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                            @Override
+                            public void onCompletion(MediaPlayer mp) {
+                                Toast.makeText(MainActivity.this, "The Song is Over", Toast.LENGTH_SHORT).show();
+                                audioPlayer.reset();
+                            }
+                        });
+                    }
+                }
+            });
+
+            pauseButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if(audioPlayer!= null){
+                        audioPlayer.pause();
+                    }
+
+                }
+            });
         }
 
 
@@ -92,70 +122,63 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
     @Override
     public void onItemClick(View view, int position) throws IOException {
         Toast.makeText(this, "You clicked " + adapter.getItem(position) + " on row number " + position, Toast.LENGTH_SHORT).show();
-        recyclerView.setAdapter(adapter);
-        audioPlayer = new MediaPlayer();
-        audioPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-        String path =  Environment.getExternalStorageDirectory().toString() + "/Music/" + adapter.getItem(position);
-        audioPlayer.setDataSource(getApplicationContext(), Uri.parse(path));
-        audioPlayer.prepare();
-        audioPlayer.start();
-        audioPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-            @Override
-            public void onCompletion(MediaPlayer mp) {
-                Toast.makeText(MainActivity.this, "The Song is Over", Toast.LENGTH_SHORT).show();
-                audioPlayer.release();
-            }
-        });
-        //progressBar = findViewById(R.id.play_audio_progressbar);
-        Drawable draw= getResources().getDrawable(R.drawable.custom_progressbar);
-        progressBar = (ProgressBar) findViewById(R.id.play_audio_progressbar);
-        //progressBar = (ProgressBar) findViewById(R.id.play_audio_progressbar);
-        progressBar.setProgressDrawable(draw);
-        progressBar.setProgress(0);
-        progressBar.setMax(audioPlayer.getDuration() / 1000);
-        progressBarStatus = 0;
-        //progressBar.draw(view);
-        Button playButton = (Button) findViewById(R.id.start);
-        new Thread(new Runnable() {
-            public void run() {
-                while(progressBarStatus < audioPlayer.getDuration()/1000){
-                    progressBarStatus = audioPlayer.getCurrentPosition()/1000;
-                    Log.d("positions","current: " + progressBarStatus);
-                    progressBarHandler.post(new Runnable() {
-                        public void run() {
-                            progressBar.setProgress(progressBarStatus);
-                        }
-                    });
-                    if (progressBarStatus >= audioPlayer.getDuration()/1000) {
-                        // close the progress bar dialo
-                    }
-                }
-
-            }
-        }).start();
-
-        playButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                audioPlayer.start();
-                audioPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                    @Override
-                    public void onCompletion(MediaPlayer mp) {
-                        Toast.makeText(MainActivity.this, "The Song is Over", Toast.LENGTH_SHORT).show();
-                        audioPlayer.release();
-                    }
-                });
-            }
-        });
-
-        Button pauseButton = (Button) findViewById(R.id.stop);
-
-        pauseButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        if(!audioPlayer.isPlaying() || position != currentSong){
+            if(position != currentSong){
                 audioPlayer.pause();
+                audioPlayer.reset();
+                currentSong = position;
+                String path =  Environment.getExternalStorageDirectory().toString() + "/Music/" + adapter.getItem(position);
+                audioPlayer.setDataSource(getApplicationContext(), Uri.parse(path));
+                audioPlayer.prepare();
             }
-        });
+            audioPlayer.start();
+            audioPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                @Override
+                public void onCompletion(MediaPlayer mp) {
+                    Toast.makeText(MainActivity.this, "The Song is Over", Toast.LENGTH_SHORT).show();
+                    audioPlayer.reset();
+                }
+            });
+            //progressBar = findViewById(R.id.play_audio_progressbar);
+            Drawable draw= getResources().getDrawable(R.drawable.custom_progressbar);
+            progressBar = (ProgressBar) findViewById(R.id.play_audio_progressbar);
+            //progressBar = (ProgressBar) findViewById(R.id.play_audio_progressbar);
+            progressBar.setProgressDrawable(draw);
+            progressBar.setProgress(0);
+            progressBar.setMax(audioPlayer.getDuration() / 1000);
+            progressBarStatus = 0;
+            //progressBar.draw(view);
+            new Thread(new Runnable() {
+                public void run() {
+                    while(audioPlayer.isPlaying()){
+                            if(progressBarStatus < audioPlayer.getDuration()/1000){
+                                progressBarStatus = audioPlayer.getCurrentPosition()/1000;
+                                Log.d("positions","current: " + progressBarStatus);
+                                progressBarHandler.post(new Runnable() {
+                                    public void run() {
+                                        progressBar.setProgress(progressBarStatus);
+                                    }
+                                });
+                            }
+                            else  {
+                                progressBar.setProgress(0);
+                                break;
+                                // close the progress bar dialo
+                            }
+
+                    }
+
+                }
+            }).start();
+
+
+
+
+        }
+        else{
+            audioPlayer.pause();
+        }
+
     }
 
 
