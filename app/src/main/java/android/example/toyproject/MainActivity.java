@@ -3,6 +3,7 @@ package android.example.toyproject;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -26,9 +27,11 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.TreeMap;
 
 public class MainActivity extends AppCompatActivity implements MyAdapter.ItemClickListener {
 
@@ -36,7 +39,7 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
     private MediaPlayer audioPlayer = new MediaPlayer();;
     private RecyclerView recyclerView;
     private RecyclerView.Adapter mAdapter;
-    private RecyclerView.LayoutManager layoutManager;
+    private LinearLayoutManager layoutManager;
     private ProgressBar progressBar;
     private int progressBarStatus = 0;
     private int currentSong = -1;
@@ -52,6 +55,7 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
         setContentView(R.layout.activity_main);
         Button playButton = (Button) findViewById(R.id.start);
         Button pauseButton = (Button) findViewById(R.id.stop);
+        Button sortButton = (Button) findViewById(R.id.sort);
         audioPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 
         if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
@@ -68,15 +72,20 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
                 Log.d("Files","Exception " + e);
             }
             String[] file_names = new String[files.length];
+            TreeMap<Long,String> last_modified = new TreeMap<Long,String>();
+
             for (int i = 0; i < files.length; i++)
             {
                 file_names[i] = files[i].getName();
-                Log.d("Files", "FileName:" + files[i].getName());
+                last_modified.put(files[i].lastModified(),files[i].getName());
+                Log.d("Files", "FileName:" + files[i].getClass());
             }
-            //layoutManager = new LinearLayoutManager(this,LinearLayoutManager.HORIZONTAL, false);
+            layoutManager = new LinearLayoutManager(this,LinearLayoutManager.VERTICAL, false);
             recyclerView = findViewById(R.id.my_recycler_view);
-            recyclerView.setLayoutManager(new LinearLayoutManager(this));
-
+            recyclerView.setLayoutManager(layoutManager);
+            DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(recyclerView.getContext(),
+                    layoutManager.getOrientation());
+            recyclerView.addItemDecoration(dividerItemDecoration);
             // use this setting to improve performance if you know that changes
             // in content do not change the layout size of the RecyclerView
 
@@ -84,7 +93,7 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
             List<String> list = (List<String>) Arrays.asList(file_names);
             ArrayList<String> names = new ArrayList<String>(list);
             Log.d("files","size " + names.size() );
-            adapter = new MyAdapter(this, names);
+            adapter = new MyAdapter(this, names, last_modified);
             adapter.setClickListener(this);
             recyclerView.setAdapter(adapter);
 
@@ -101,6 +110,13 @@ public class MainActivity extends AppCompatActivity implements MyAdapter.ItemCli
                             }
                         });
                     }
+                }
+            });
+
+            sortButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    adapter.notifyAdapterDataSetChanged();
                 }
             });
 

@@ -10,18 +10,37 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class MyAdapter extends RecyclerView.Adapter<MyAdapter.ViewHolder> {
 
     private List<String> mData;
     private LayoutInflater mInflater;
     private ItemClickListener mClickListener;
+    private List<String> timeData;
+    private List<String> nameData;
+    private boolean sortedByName = false;
 
     // data is passed into the constructor
-    MyAdapter(Context context, List<String> data) {
+    MyAdapter(Context context, List<String> data, TreeMap<Long,String> createTime) {
         this.mInflater = LayoutInflater.from(context);
-        this.mData = data;
+        timeData = getValues(createTime);
+        this.mData = timeData;
+        Collections.sort(data);
+        nameData = data;
+    }
+
+    private List<String> getValues(TreeMap<Long, String> createTime) {
+        List<String> keys = new ArrayList<String>();
+        for(Map.Entry<Long,String> entry : createTime.entrySet()) {
+            keys.add(entry.getValue());
+        }
+        Collections.reverse(keys);
+        return keys;
     }
 
     // inflates the row layout from xml when needed
@@ -43,6 +62,19 @@ public class MyAdapter extends RecyclerView.Adapter<MyAdapter.ViewHolder> {
         return mData.size();
     }
 
+
+    public void notifyAdapterDataSetChanged() {
+        //do your sorting here
+        if(sortedByName == false){
+            mData = nameData;
+            sortedByName = true;
+        }
+        else{
+            mData = timeData;
+            sortedByName = false;
+        }
+        notifyDataSetChanged();
+    }
 
     // stores and recycles views as they are scrolled off screen
     public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
